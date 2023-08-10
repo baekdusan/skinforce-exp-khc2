@@ -90,6 +90,12 @@ class ExperimentApp:
                     line = line.decode().strip()
                     try:
                         self.value = float(line)
+                        if hasattr(self, 'measurementLabel'):
+                            if self.value > 12:
+                                self.measurementLabel.config(text= str(self.value))
+                                self.maximum = max(self.value, self.maximum)
+                                self.maximumLabel.config(text = str(self.maximum))
+
                         if hasattr(self, 'stickCanvas'):
                             self.moveSensorLine(self.scale)
                     except ValueError:
@@ -107,7 +113,24 @@ class ExperimentApp:
     
     # 측정 함수
     def calibrate(self, button):
+        explainFont = tkinter.font.Font(size= 84, weight= "normal")
+        measurementFont = tkinter.font.Font(size= 144, weight= "bold")
+        popUp = tk.Toplevel(self.root)
+        popUp.title("최고 힘 측정")
+        geometry_string = f"{self.width}x{self.height}"
+        popUp.geometry(geometry_string)
         button.configure(state= "active")
+
+        explainLabel = tk.Label(popUp, text= "불편하지 않을 정도의 최대의 힘으로 눌러주세요.", font= explainFont)
+        explainLabel.place(relx=0.5, rely= 0.25, anchor= "s")
+
+        self.measurementLabel = tk.Label(popUp, text = "0.00", font= measurementFont)
+        self.measurementLabel.place(relx = 0.4, rely= 0.75, anchor= "e")
+
+        self.maximum = 0.00
+        self.maximumLabel = tk.Label(popUp, text= "0.00", font= measurementFont, fg= "RoyalBlue3")
+        self.maximumLabel.place(relx = 0.6, rely= 0.75, anchor= "w")
+
         return
 
     # 실험 시작 화면
