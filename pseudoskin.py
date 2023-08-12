@@ -5,7 +5,6 @@ import random
 import serial
 import serial.tools.list_ports as sp
 import threading
-import json
 
 class ExperimentApp:
     # root window, global variables initialization
@@ -21,17 +20,6 @@ class ExperimentApp:
         self.root.attributes("-fullscreen", True)
         self.root.resizable(True, True)
 
-        
-
-        # JSON 파일이 비어있는 경우 빈 객체로 초기화
-        try:
-            with open('data.json', 'r') as file:
-                self.data = json.load(file)
-        except FileNotFoundError:
-            self.data = {}
-
-
-
         ######### variables ##########
 
         self.numList = set()
@@ -40,8 +28,6 @@ class ExperimentApp:
                            tk.PhotoImage(file="forearm.png")]
         self.idx = 0
         self.scale = 0
-        self.maximum = 0
-        self.checkMaximum = False
 
         ##############################
 
@@ -86,9 +72,6 @@ class ExperimentApp:
             func, params = self.functionList[index]
             func(*params)
 
-    def update_maximum_label(self, maximum):
-        self.maximumLabel.config(text=str(maximum))
-
     def setSensor(self):
         connected_ports = []
         for i in sp.comports():
@@ -107,45 +90,31 @@ class ExperimentApp:
                     line = line.decode().strip()
                     try:
                         self.value = float(line)
-                        if self.checkMaximum and hasattr(self, 'measurementLabel') and hasattr(self, 'maximumLabel'):
+                        if hasattr(self, 'measurementLabel'):
                             if self.value > 12:
                                 self.measurementLabel.config(text= str(self.value))
                                 self.maximum = max(self.value, self.maximum)
                                 self.maximumLabel.config(text = str(self.maximum))
-                                self.root.after(0, self.update_maximum_label, self.maximum)  # 메인 스레드에서 업데이트
 
-                        if hasattr(self, 'stickCanvas') and hasattr(self, 'sensorLine'):
+                        if hasattr(self, 'stickCanvas'):
                             self.moveSensorLine(self.scale)
-
                     except ValueError:
                         self.value = 0
-
-    def save_data(self, data):
-        with open('data.json', 'w') as file:
-            json.dump(data, file, indent=4)       
   
     # 피험자 번호 중복 체크 후 button active
     def check_duplicate(self, num, button):
-        # 데이터에 사용자 번호 추가
-        if num not in self.data:
-            self.data[num] = {"knuckle": False, "back": False, "forearm": False}
-            self.save_data(self.data)
-            print(f"피험자 {num}의 데이터를 추가했습니다.")
-            msgbox.showinfo("중복되는 번호", "사용 가능한 번호입니다.")
-            button.config(state= "active")
-        else:
-            print(f"이미 피험자 {num}의 데이터가 존재합니다.")
-            msgbox.showinfo("중복되는 번호", "다른 번호를 사용해주세요.")
+        if num not in self.numList:
+            self.numList.add(num)
+            msgbox.showinfo("중복 확인", "사용 가능한 번호입니다.")
+            button.configure(state= "active")
+            return
+        
+        msgbox.showinfo("중복되는 번호", "다른 번호를 사용해주세요.")
     
     # 측정 함수
     def calibrate(self, button):
         explainFont = tkinter.font.Font(size= 84, weight= "normal")
         measurementFont = tkinter.font.Font(size= 144, weight= "bold")
-        buttonfont = tkinter.font.Font(size= 64, weight= "normal")
-
-        self.maximum = 0
-        self.checkMaximum = True
-
         popUp = tk.Toplevel(self.root)
         popUp.title("최고 힘 측정")
         geometry_string = f"{self.width}x{self.height}"
@@ -156,20 +125,13 @@ class ExperimentApp:
         explainLabel.place(relx=0.5, rely= 0.25, anchor= "s")
 
         self.measurementLabel = tk.Label(popUp, text = "0.00", font= measurementFont)
-        self.measurementLabel.place(relx = 0.4, rely= 0.75, anchor= "se")
+        self.measurementLabel.place(relx = 0.4, rely= 0.75, anchor= "e")
 
+        self.maximum = 0.00
         self.maximumLabel = tk.Label(popUp, text= "0.00", font= measurementFont, fg= "RoyalBlue3")
-        self.maximumLabel.place(relx = 0.6, rely= 0.75, anchor= "sw")
-
-        saveButton = tk.Button(popUp, text= "설정", command= lambda: { self.saveMaximumValue(popUp) if self.maximum > 10 else msgbox.showinfo("측정 오류", "값이 매우 작습니다.\n 다시 눌러주세요.") }, font= buttonfont)
-        saveButton.place(relx= 0.5, rely= 0.75, y= 20, anchor= "n")
+        self.maximumLabel.place(relx = 0.6, rely= 0.75, anchor= "w")
 
         return
-
-    def saveMaximumValue(self, w):
-        self.explain_label.config(text= "측정이 완료되었습니다.\n다음 버튼을 눌러주세요.")
-        self.checkMaximum = False
-        w.destroy()
 
     # 실험 시작 화면
     def initialPage(self, page):
@@ -203,7 +165,7 @@ class ExperimentApp:
 
         entry_frame.pack(pady= 80)
 
-        next_button = tk.Button(bottom, text="다음", state= "disable", command=self.show_next_frame, font= buttonfont)
+        next_button = tk.Button(bottom, text="다음", command=self.show_next_frame, font= buttonfont)
         next_button.pack()
 
         ##########
@@ -243,8 +205,8 @@ class ExperimentApp:
         next_button = tk.Button(bottom, text="다음", state= "disable", command=self.show_next_frame, font= buttonfont)
         next_button.pack(side= "right", padx= 100)
 
-        self.explain_label = tk.Label(bottom, text= target + " 부분을 측정합니다.\n 측정 버튼을 눌러주세요.", font= explainfont)
-        self.explain_label.pack(anchor= "center")
+        explain_label = tk.Label(bottom, text= target + " 부분을 측정합니다.\n 측정 버튼을 눌러주세요.", font= explainfont)
+        explain_label.pack(anchor= "center")
 
         ##########
 
@@ -283,38 +245,29 @@ class ExperimentApp:
         self.stickCanvas = tk.Canvas(frame, width= self.width / 10, height = self.height * 0.9)
         self.stickCanvas.place(relx=0.45, rely=0.05)
 
-        stick = self.stickCanvas.create_rectangle(0, 0, self.width / 10, self.height * 0.9, fill= "snow", width= 0)
+        stick = self.stickCanvas.create_rectangle(0, 0, self.width / 10, self.height * 0.9, fill= "white smoke")
+
+        self.now = self.stickCanvas.create_rectangle(0, self.height * 0.9, self.width / 10, self.height * 0.9 / scale * (scale + 1), fill= "light pink")
 
         x1, y1, x2, y2 = self.stickCanvas.coords(stick)
 
         self.gapY = (y2 - y1) / scale
 
-        ranges = [i * 0.18 * y2 for i in range(1, 6)]
-        self.problems = list()
-
         for i in range(scale):
-            addY = i * self.gapY
-            for j in ranges:
-                if addY <= j < addY + self.gapY:
-                    self.stickCanvas.create_rectangle(x1, y2 - addY - self.gapY, x2, y2 - addY, fill= "white smoke", width= 0)
-                    self.problems.append(y2 - addY - self.gapY)
-                    break
-            self.stickCanvas.create_line(x1, addY, x2, addY, fill= "light grey")
-
-        self.now = self.stickCanvas.create_rectangle(0, self.height * 0.9, self.width / 10, self.height * 0.9 / scale * (scale + 1), fill= "light pink", width= 0)
+            y = y1 + (i * self.gapY)
+            self.stickCanvas.create_line(x1, y, x2, y, fill= "light grey")
         ##########
-        self.progressLabel = tk.Label(frame, text= str(self.idx) + " / 20", font= progressFont)
+        self.progressLabel = tk.Label(frame, text= str(self.idx) + " / " + str(self.scale), font= progressFont)
         self.progressLabel.place(x = self.width - 100, y = self.height - 300, anchor= "se")
         ##########
-        self.sensorBox = self.stickCanvas.create_rectangle(x1, y2, x2, y2 + self.gapY, fill= "pale violet red", width= 0)
-        self.sensorLine = self.stickCanvas.create_line(x1, y2, x2, y2, width= self.gapY / 20, fill= "maroon")
+        self.sensorBox = self.stickCanvas.create_rectangle(x1, y2, x2, y2 + self.gapY, fill= "pale violet red")
+        self.sensorLine = self.stickCanvas.create_line(x1, y2, x2, y2, width= self.gapY / scale)
         
         ##########
         self.nextButton = tk.Button(frame, text= "다음", command= lambda: self.show_problems(scale), font= partFont)
         self.nextButton.place(x = self.width - 100, y = self.height - 100, anchor= "se")
         ##########
-
-        self.problems = self.problems * 4
+        self.problems = [y1 + i * self.gapY for i in range(scale)]
         random.shuffle(self.problems)
     
     def endPage(self, page):
@@ -337,7 +290,7 @@ class ExperimentApp:
   
     def moveSensorLine(self, scale):      
         stickHeight = self.height * 0.9
-        fraction = min(self.value / (self.maximum if self.maximum else 1500), 1)
+        fraction = min(self.value / 1500, 1)
         linePlace = stickHeight - stickHeight * fraction
         x1, _, x2, _ = self.stickCanvas.coords(self.sensorLine)
 
@@ -350,7 +303,7 @@ class ExperimentApp:
    
     def show_problems(self, scale):
         
-        if self.idx == 20:
+        if self.idx == scale:
             self.idx = 0
             self.show_next_frame()
             return
