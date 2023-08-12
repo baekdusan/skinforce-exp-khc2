@@ -1,0 +1,12 @@
+{
+    "123": {
+        "knuckle": false,
+        "back": false,
+        "forearm": false
+    },
+    "456": {
+        "knuckle": false,
+        "back": false,
+        "forearm": false
+    }
+}
