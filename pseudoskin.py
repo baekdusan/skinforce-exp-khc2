@@ -7,6 +7,7 @@ import serial.tools.list_ports as sp
 import threading
 import json
 import time
+import openpyxl
 
 class ExperimentApp:
 
@@ -36,12 +37,21 @@ class ExperimentApp:
         self.handImages = {"knuckle": tk.PhotoImage(file="knuckle.png"),
                            "back": tk.PhotoImage(file="back.png"),
                            "forearm": tk.PhotoImage(file="forearm.png")}
+        self.maximum = 0
+
         self.idx = 0
         self.scale = 0
-        self.maximum = 0
+        
+        self.problemIsStarted = False
+        self.isRight = False
+        self.reactionTime = int(time.time())
+        self.crossings = 0
+
         self.countDown = 5
         self.subjectName = ""
         self.checkMaximum = False
+
+        self.xlData = list()
 
         ##############################
 
@@ -165,13 +175,20 @@ class ExperimentApp:
 
         ##############################
 
+        retryButton = tk.Button(popUp, text= "retry", command= lambda: self.retryCalibrateMaximumValue(), font= buttonfont)
+        retryButton.place(relx= 0.5, rely= 0.75, x= -20, y= 20, anchor= "ne")
+
         saveButton = tk.Button(popUp, text= "설정", command= lambda: self.saveMaximumValue(popUp), font= buttonfont)
-        saveButton.place(relx= 0.5, rely= 0.75, y= 20, anchor= "n")
+        saveButton.place(relx= 0.5, rely= 0.75, x= 20, y= 20, anchor= "nw")
 
         if button != None:
             button.configure(state= "active")
         
         return
+
+    def retryCalibrateMaximumValue(self):
+        self.maximum = 0
+        self.measurementLabel.config(text= "0.00")
 
     def saveMaximumValue(self, w):
         if self.maximum > 10:
@@ -183,7 +200,7 @@ class ExperimentApp:
             msgbox.showinfo("측정 오류", "값이 매우 작습니다.\n다시 눌러주세요.")
         
         return
-
+ 
     def preExperimentPage(self, page):
         frame = self.frames[page]
 
@@ -206,6 +223,7 @@ class ExperimentApp:
         
         self.scale = scale
         frame = self.frames[page]
+        self.reactionTime = int(time.time())
 
         # If this page is about Tutorial, do test right after calibration.
         if target == "Tutorial":
@@ -359,6 +377,8 @@ class ExperimentApp:
         value, maximum = values
         self.measurementLabel.config(text= str(value))
         self.maximumLabel.config(text=str(maximum))
+        self.crossings = 0
+        self.isRight = False
 
     # This function moves line and box including line in realtime.
     def moveSensorLine(self, scale):      
@@ -373,6 +393,20 @@ class ExperimentApp:
                 break
 
         self.stickCanvas.coords(self.sensorLine, x1, linePlace, x2, linePlace)
+
+        # check whether now the lineplace is in right place or not
+        problemY = self.stickCanvas.coords(self.now)[1]
+        if problemY <= linePlace < problemY + self.gapY:
+            if not self.isRight:
+                self.isRight = True
+        else:
+            if self.isRight:
+                self.isRight = False
+                self.crossings += 1
+
+        
+        
+
 
     def save_data(self, data):
         with open('data.json', 'w') as file:
@@ -413,6 +447,24 @@ class ExperimentApp:
    
     # This function shows next problem.
     def show_problems(self, scale):
+
+        checkTime = int(time.time())
+
+        # escape condition
+        if self.idx == 20 or (scale == self.idx == 5):
+            self.idx = 0
+
+            print("정답인가요?", self.isRight, "crossings", self.crossings, "반응 시간", checkTime - self.reactionTime)
+            self.xlData.append([self.isRight, self.crossings, checkTime - self.reactionTime])
+            self.isRight = False
+            self.crossings = 0
+
+            self.saveXlData()
+
+            self.show_next_frame()
+            return
+        
+        # It does not implement at the first time.
         if self.idx:
             self.timer = tk.Toplevel(self.root)
             self.timer.title("5초 대기 화면")
@@ -420,15 +472,14 @@ class ExperimentApp:
             titlefont= tkinter.font.Font(size=96, weight= "bold")
             self.timerLabel = tk.Label(self.timer, text= str(self.countDown) + "초 남았습니다.", font=titlefont)
             self.timerLabel.place(relx= 0.5, rely = 0.5, anchor= "s")
-
             self.updateTimer()
 
+            print("정답인가요?", self.isRight, "crossings", self.crossings, "반응 시간", checkTime - self.reactionTime)
+            self.xlData.append([self.isRight, self.crossings, checkTime - self.reactionTime])
+            self.isRight = False
+            
 
-        # escape condition
-        if self.idx == 20 or (scale == self.idx == 5):
-            self.idx = 0
-            self.show_next_frame()
-            return
+            self.crossings = 0
 
         x1, _, x2, _ = self.stickCanvas.coords(self.now) 
 
@@ -445,7 +496,19 @@ class ExperimentApp:
             self.timer.after(1000, self.updateTimer)
         else:
             self.countDown = 5
+            self.reactionTime = int(time.time())
             self.timer.destroy()
+
+    def saveXlData(self):
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+
+        for rowIndex, rowData in enumerate(self.xlData, start= 1):
+            for colIndex, value in enumerate(rowData, start= 1):
+                sheet.cell(row= rowIndex, column= colIndex, value= value)
+        
+        workbook.save(f"{self.subjectName}번 실험자.xlsx")
+        print("파일을 저장하였습니다.")
 
     def show_frame(self):
         self.addPage(self.current_frame_index)
