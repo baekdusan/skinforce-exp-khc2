@@ -1,0 +1,104 @@
+{
+    "1": {
+        "progress": 0,
+        "haptics": [
+            true,
+            false
+        ],
+        "targets": [
+            "forearm",
+            "back of hand",
+            "knuckle"
+        ],
+        "scales": [
+            16,
+            16,
+            16
+        ]
+    },
+    "2": {
+        "progress": 0,
+        "haptics": [
+            false,
+            true
+        ],
+        "targets": [
+            "forearm",
+            "back of hand",
+            "knuckle"
+        ],
+        "scales": [
+            16,
+            16,
+            16
+        ]
+    },
+    "3": {
+        "progress": 0,
+        "haptics": [
+            true,
+            false
+        ],
+        "targets": [
+            "back of hand",
+            "knuckle",
+            "forearm"
+        ],
+        "scales": [
+            16,
+            16,
+            16
+        ]
+    },
+    "4": {
+        "progress": 0,
+        "haptics": [
+            false,
+            true
+        ],
+        "targets": [
+            "back of hand",
+            "knuckle",
+            "forearm"
+        ],
+        "scales": [
+            16,
+            16,
+            16
+        ]
+    },
+    "5": {
+        "progress": 0,
+        "haptics": [
+            true,
+            false
+        ],
+        "targets": [
+            "knuckle",
+            "forearm",
+            "back of hand"
+        ],
+        "scales": [
+            16,
+            16,
+            16
+        ]
+    },
+    "6": {
+        "progress": 0,
+        "haptics": [
+            false,
+            true
+        ],
+        "targets": [
+            "knuckle",
+            "forearm",
+            "back of hand"
+        ],
+        "scales": [
+            16,
+            16,
+            16
+        ]
+    }
+}
