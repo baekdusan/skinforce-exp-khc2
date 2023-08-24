@@ -11,8 +11,8 @@ import openpyxl
 
 class ExperimentApp:
 
-    # jsonName, xlsxName = "data1.json", "exp1.xlsx"
-    jsonName, xlsxName = "data2.json", "exp2.xlsx"
+    jsonName, xlsxName = "data1.json", "exp1.xlsx"
+    # jsonName, xlsxName = "data2.json", "exp2.xlsx"
 
     def __init__(self, root):
         
@@ -222,6 +222,9 @@ class ExperimentApp:
         else:
             self.blockNumber = 0
 
+        self.isRight = False
+        self.firstTouch = 0
+
         titlefont= tkinter.font.Font(size=96, weight= "bold")
         hapticfont = tkinter.font.Font(size=72, weight= "bold")
         buttonfont = tkinter.font.Font(size=72, weight= "normal")
@@ -239,7 +242,7 @@ class ExperimentApp:
         bottom = tk.Frame(frame)
         bottom.pack(side= "bottom", fill= "both", expand= True)
 
-        startButton = tk.Button(bottom, text=f"{state} 시작", font=buttonfont, command=lambda: (self.showNextFrame(), setattr(self, "hapticOn", True if haptics else False)))
+        startButton = tk.Button(bottom, text=f"{state} 시작", font=buttonfont, command=lambda: (self.showNextFrame(), setattr(self, "hapticOn", True if haptics else False), setattr(self, "firstTouch", 0), setattr(self, "isRight", False)))
 
         startButton.pack(pady= 120)
 
@@ -472,7 +475,6 @@ class ExperimentApp:
                                )
             print("피험자 번호, 타겟 부위, 최대 힘, 햅틱 유무, 스케일, 블럭, 문제 앞, 문제 뒤, 현재 위치, 정오표, 현재 힘, 교차 수, 반응 시간, 처음 정답 시간, 입력 시간")
             print(*self.xlData[-1], sep= " ")
-            self.isRight = False
 
             self.saveXlData()
 
