@@ -8,11 +8,13 @@ import threading
 import json
 import time
 import openpyxl
+import numpy as np
 
 class ExperimentApp:
 
-    jsonName, xlsxName = "data1.json", "exp1.xlsx"
-    # jsonName, xlsxName = "data2.json", "exp2.xlsx"
+    jsonName, xlsxName, type = "data1.json", "exp1.xlsx", 3
+    # jsonName, xlsxName, type = "data2.json", "exp2.xlsx", 1
+    A, B = 1, 0
 
     def __init__(self, root):
         
@@ -43,6 +45,7 @@ class ExperimentApp:
         self.subjectName = ""
         self.bodyLocation = ""
         self.blockNumber = 0
+        self.threshold = 30
 
         # calibration
         self.checkMaximum = False
@@ -112,20 +115,21 @@ class ExperimentApp:
         entry.pack(side="left", padx= 20)
         entry.focus()
 
-        checkButton = tk.Button(entryFrame, text="중복 확인", command= lambda: self.checkDuplicate(str(entry.get()), nextButton), font= buttonfont, repeatinterval= 1000)
+        checkButton = tk.Button(entryFrame, text="Check", command= lambda: self.checkDuplicate(str(entry.get()), nextButton), font= buttonfont, repeatinterval= 1000)
         checkButton.pack(side="right")
 
         entryFrame.pack(pady= 80)
 
         ###############################
 
-        nextButton = tk.Button(bottom, text="다음", state= "disable", command=self.showNextFrame, font= buttonfont)
+        nextButton = tk.Button(bottom, text="Next", state= "disable", command=self.showNextFrame, font= buttonfont)
         nextButton.pack()
 
     def calibrationPage(self, target, page):
 
         self.bodyLocation = target
         self.hapticOn = False
+        self.A, self.B = 1, 0
         frame = self.frames[page]
 
         titlefont= tkinter.font.Font(size= 96, weight= "bold")
@@ -153,19 +157,22 @@ class ExperimentApp:
         bottom = tk.Frame(frame)
         bottom.pack(side= "bottom", fill= "both", expand= True)
 
-        measureButton = tk.Button(bottom, text= "측정", font= buttonfont, command= lambda: self.measurementPage(nextButton))
+        measureButton = tk.Button(bottom, text= "Measure", font= buttonfont, command= lambda: self.measurementPage(nextButton))
         measureButton.pack(side= "left", padx= 100)
 
-        nextButton = tk.Button(bottom, text="다음", state= "disable", command=self.showNextFrame, font= buttonfont)
+        nextButton = tk.Button(bottom, text="Next", state= "disable", command=self.showNextFrame, font= buttonfont)
         nextButton.pack(side= "right", padx= 100)
 
-        self.explainLabel = tk.Label(bottom, text= target + "을(를) 측정합니다.\n측정 버튼을 눌러주세요.", font= explainfont)
+        self.explainLabel = tk.Label(bottom, text= target + "\nPress the Measure Button.", font= explainfont)
         self.explainLabel.pack(fill= "y", expand= True)
 
     def measurementPage(self, button):
         explainFont = tkinter.font.Font(size= 84, weight= "normal")
         measurementFont = tkinter.font.Font(size= 128, weight= "bold")
         buttonfont = tkinter.font.Font(size= 64, weight= "normal")
+
+        print("A, B값을 공백을 포함하여 입력해주세요.(ex. 2.4 3.6) :", end= " ")
+        self.A, self.B = map(float, input().split())
 
         # whenever we measure, should initialize maximum value and turn on the checkMaximum.
         self.maximum = 0
@@ -176,7 +183,7 @@ class ExperimentApp:
         geometryString = f"{self.width}x{self.height}"
         popUp.geometry(geometryString)
 
-        explainLabel = tk.Label(popUp, text= "아프지 않은 범위 내에서 최대의 힘으로 눌러주세요.", font= explainFont)
+        explainLabel = tk.Label(popUp, text= "Press with as much force as possible without pain.", font= explainFont)
         explainLabel.place(relx= 0.5, rely= 0.25, anchor= "s")
 
         ##############################
@@ -191,23 +198,27 @@ class ExperimentApp:
 
         popUp.bind("<Button-3>", lambda event: self.measureAgain())
 
-        saveButton = tk.Button(popUp, text= "설정", command= lambda: self.saveMaximumValue(popUp), font= buttonfont)
-        saveButton.place(relx= 0.5, rely= 0.75, anchor= "n")
+        saveButton = tk.Button(popUp, text= "Set", command= lambda: self.saveMaximumValue(popUp), font= buttonfont)
+        saveButton.place(relx= 0.5, rely= 0.75, anchor= "ne")
+
+        hapticButton = tk.Button(popUp, text = "Haptic", command= lambda: { self.Oser.write("b".encode('utf-8')) }, font= buttonfont)
+        hapticButton.place(x= self.width - 100, y= self.height - 100, anchor= "se")
 
         if button != None:
             button.configure(state= "active")
         
         return
-
+    
     def measureAgain(self):
         self.maximum = 0
-        self.measurementLabel.config(text= "0.00 gf")
+        self.measurementLabel.config(text= "0.00 N")
 
     def saveMaximumValue(self, w):
         if self.maximum > 10:
             if hasattr(self, 'explainLabel'):
-                self.explainLabel.config(text= "측정이 완료되었습니다.\n다음 버튼을 눌러주세요.")
+                self.explainLabel.config(text= "Measurement has been completed.\nPlease click the next button.")
             self.checkMaximum = False
+            self.threshold = self.maximum / 32
             w.destroy()
         else:
             msgbox.showinfo("측정 오류", "값이 매우 작습니다.\n다시 눌러주세요.")
@@ -216,7 +227,7 @@ class ExperimentApp:
  
     def preExperimentPage(self, page, haptics, state):
 
-        if state != "튜토리얼":
+        if state != "Tutorial":
             self.blockNumber = (self.blockNumber + 1) % 4
             if self.blockNumber == 0: self.blockNumber = 1
         else:
@@ -225,7 +236,7 @@ class ExperimentApp:
         self.isRight = False
         self.firstTouch = 0
 
-        titlefont= tkinter.font.Font(size=96, weight= "bold")
+        titlefont= tkinter.font.Font(size=88, weight= "bold")
         hapticfont = tkinter.font.Font(size=72, weight= "bold")
         buttonfont = tkinter.font.Font(size=72, weight= "normal")
         
@@ -233,16 +244,16 @@ class ExperimentApp:
         top = tk.Frame(frame)
         top.pack(side= "top", fill= "both", expand= True)
 
-        # hapticLabel = tk.Label(top, text= "Haptic" if haptics else "No Haptic", font= hapticfont)
-        # hapticLabel.place(x = 100, y = 100)
+        hapticLabel = tk.Label(top, text= "Haptic" if haptics else "No Haptic", font= hapticfont)
+        hapticLabel.place(x = 100, y = 100)
 
-        label = tk.Label(top, text= f"{state} 시작 버튼을 누르면 {state}이 시작됩니다.", font= titlefont)
+        label = tk.Label(top, text= f"When you press the {state} start button, {state} starts.", font= titlefont)
         label.pack(anchor= "s", expand= True)
 
         bottom = tk.Frame(frame)
         bottom.pack(side= "bottom", fill= "both", expand= True)
 
-        startButton = tk.Button(bottom, text=f"{state} 시작", font=buttonfont, command=lambda: (self.showNextFrame(), setattr(self, "hapticOn", True if haptics else False), setattr(self, "firstTouch", 0), setattr(self, "isRight", False)))
+        startButton = tk.Button(bottom, text=f"{state} Start", font=buttonfont, command=lambda: (self.showNextFrame(), setattr(self, "hapticOn", True if haptics else False), setattr(self, "firstTouch", 0), setattr(self, "isRight", False)))
 
         startButton.pack(pady= 120)
 
@@ -260,7 +271,7 @@ class ExperimentApp:
         whichPart = tk.Label(frame, text= target, font= partFont)
         whichPart.place(x= 100, y= 100)
 
-        comment = "커서를 옮기기 시작하면\n최대한 빠르고 정확하게 입력해주세요."
+        comment = "When you start moving the cursor\nPlease input as quickly and accurately as possible."
         explainComment = tk.Label(frame, text= comment, font= progressFont, justify= "left")
         explainComment.place(x= 100, y= 290, anchor= "sw")
 
@@ -297,10 +308,10 @@ class ExperimentApp:
 
         ###############################
 
-        skipButton = tk.Button(frame, text= "건너뛰기", command= lambda: (self.showNextFrame(), setattr(self, "idx", 0)), font= partFont)
-        skipButton.place(x = self.width - 100, y = self.height - 210, anchor= "se")
+        self.skipButton = tk.Button(frame, text= "Skip", command= lambda: (self.showNextFrame(), setattr(self, "idx", 0)), font= partFont)
+        self.skipButton.place(x = self.width - 100, y = self.height - 210, anchor= "se")
 
-        nextButton = tk.Button(frame, text= "다음", command= lambda: self.showProblems(scale), font= partFont)
+        nextButton = tk.Button(frame, text= "Next", command= lambda: self.showProblems(scale), font= partFont)
         nextButton.place(x = self.width - 100, y = self.height - 190, anchor= "ne")
 
         self.problems = self.problems * 4
@@ -321,7 +332,7 @@ class ExperimentApp:
 
         ###############################
 
-        label = tk.Label(top, text= "실험이 모두 끝났습니다. 감사합니다.", font= titlefont)
+        label = tk.Label(top, text= "The experiment is all over. thank you!", font= titlefont)
         label.pack(anchor= "s", expand= True)
 
         ###############################
@@ -329,7 +340,7 @@ class ExperimentApp:
         bottom = tk.Frame(frame)
         bottom.pack(side= "bottom", fill= "both", expand= True)
 
-        endButton = tk.Button(bottom, text= "종료", font= buttonfont, command= self.root.destroy)
+        endButton = tk.Button(bottom, text= "Finish", font= buttonfont, command= self.root.destroy)
         endButton.pack(pady= 120)
 
         ###############################
@@ -355,50 +366,53 @@ class ExperimentApp:
             self.Oser.timeout = 10
             self.Oser.write_timeout = 10
             self.Oser.open()
+            while self.Oser.is_open:
+                # while self.Oser.is_open:  
+                with serial.Serial() as ser:
+                    ser.port = connected_ports[2]
+                    ser.baudrate = 9600
+                    ser.timeout = 10
+                    ser.write_timeout = 10
+                    ser.open()
 
-            # while self.Oser.is_open:  
-            with serial.Serial() as ser:
-                ser.port = connected_ports[2]
-                ser.baudrate = 9600
-                ser.timeout = 10
-                ser.write_timeout = 10
-                ser.open()
+                    while ser.is_open:
+                        ser.write("1".encode())
+                        line = ser.readline()
+                        if line:
+                            try:
+                                line = line.decode().strip()
+                                initialValue = float(line)
+                                self.value = round(self.A * (np.exp(self.B * initialValue) - 1), 3)
 
-                while ser.is_open:
-                    ser.write("1".encode())
-                    line = ser.readline()
-                    if line:
-                        try:
-                            line = line.decode().strip()
-                            self.value = float(line)
+                                if abs(self.value - self.prevForce) >= self.threshold and self.hapticOn:
+                                    # haptic reaction disposures when the task does not stop.
+                                    if not self.isPaused:
+                                        sig = "b"
+                                        sig = sig.encode('utf-8')
+                                        self.Oser.write(sig)
+                                    self.prevForce = self.value
 
-                            if abs(self.value - self.prevForce) >= 30 and self.hapticOn and not self.isPaused:
-                                self.prevForce = self.value
-                                sig = "b"
-                                sig = sig.encode('utf-8')
-                                self.Oser.write(sig)
-
-                            if self.checkMaximum and hasattr(self, 'measurementLabel') and hasattr(self, 'maximumLabel'):
-                                if self.value > 0:
+                                if self.checkMaximum and hasattr(self, 'measurementLabel') and hasattr(self, 'maximumLabel'):
+                                    # if self.value > 0:
                                     self.maximum = max(self.value, self.maximum)
                                     self.root.after(0, self.updateMaximumLabel, (self.value, self.maximum))
 
-                            if hasattr(self, 'stickCanvas') and hasattr(self, 'sensorLine'):
-                                self.moveSensorLine(self.scale)
+                                if hasattr(self, 'stickCanvas') and hasattr(self, 'sensorLine'):
+                                    self.moveSensorLine(self.scale)
 
-                            if self.isTryStarted and self.value > 1:
-                                self.reactionTime = time.time()
-                                self.isTryStarted = False
+                                if self.isTryStarted and self.value > 1:
+                                    self.reactionTime = time.time()
+                                    self.isTryStarted = False
 
-                        except ValueError:
-                            self.value = 0
+                            except ValueError:
+                                self.value = 0
  
 
     # This function shows realtime value and maximum value.
     def updateMaximumLabel(self, values):
         value, maximum = values
-        self.measurementLabel.config(text= str(value) + " gf")
-        self.maximumLabel.config(text=str(maximum) + " gf")
+        self.measurementLabel.config(text= str(value) + " N")
+        self.maximumLabel.config(text=str(maximum) + " N")
         self.crossings = 0
         self.isRight = False
 
@@ -491,6 +505,7 @@ class ExperimentApp:
             self.stickCanvas.itemconfigure(self.now, state="hidden")
             self.stickCanvas.itemconfigure(self.sensorBox, state= "hidden")
             self.stickCanvas.itemconfigure(self.sensorLine, state= "hidden")
+            self.skipButton.config(state= "disable")
             for i in self.rects:
                 self.stickCanvas.itemconfig(i, state= "hidden")
             self.stickCanvas.itemconfig(self.stick, fill= "gray")
@@ -526,6 +541,7 @@ class ExperimentApp:
         self.stickCanvas.itemconfigure(self.now, state="normal")
         self.stickCanvas.itemconfigure(self.sensorBox, state= "normal")
         self.stickCanvas.itemconfigure(self.sensorLine, state= "normal")
+        self.skipButton.config(state= "active")
         for i in self.rects:
                 self.stickCanvas.itemconfig(i, state= "normal")
         self.stickCanvas.itemconfig(self.stick, fill= "snow")
@@ -568,12 +584,13 @@ class ExperimentApp:
         print(*self.haptics, sep= " ")
         for i in self.todoList:
             self.functionList.append((self.calibrationPage, (i, page))); page += 1
-            self.functionList.append((self.preExperimentPage, (page, False, "튜토리얼"))); page += 1
-            self.functionList.append((self.experimentPage, (i, self.scales[0], page))); page += 1
             for j in self.haptics:
+                self.functionList.append((self.preExperimentPage, (page, j, "Tutorial"))); page += 1
+                self.functionList.append((self.experimentPage, (i, self.scales[0], page))); page += 1
                 for k in self.scales:
-                    self.functionList.append((self.preExperimentPage, (page, j, "실험"))); page += 1
-                    self.functionList.append((self.experimentPage, (i, k, page))); page += 1
+                    for _ in range(self.type):
+                        self.functionList.append((self.preExperimentPage, (page, j, "Experiment"))); page += 1
+                        self.functionList.append((self.experimentPage, (i, k, page))); page += 1
         self.functionList.append((self.endPage, (page,)))
 
     # In this function, we add pages whenever we go to next page.
@@ -588,6 +605,9 @@ class ExperimentApp:
         frame.pack(fill=tk.BOTH, expand=True)
 
     def showNextFrame(self):
+        # right after subjects confirm their input, cannot allow them to go to next frame.
+        if self.isPaused:
+            return
         self.frames[self.currentFrameIndex].pack_forget()
         self.currentFrameIndex = (self.currentFrameIndex + 1) % len(self.frames)
         self.showFrame()

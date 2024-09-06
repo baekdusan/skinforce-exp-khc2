@@ -1,27 +1,18 @@
-# pseudoskin
+# SkinForce: 힘 입력 성능 이해 실험 프로그램
+---
 
-- 파일 이름을 바꿀 필요X
+이 프로그램은 **제2회 한국햅틱스학회 (KHC)**에 게재된 논문 *"자신의 피부를 누르는 힘을 입력으로 사용하는 인터페이스에서의 사용자 힘 입력 성능 이해"* 에서 사용된 실험 프로그램입니다.
 
-- 브랜치 생성: git branch j(main에서 생성하기)
-- 브랜치 이동: git checkout j
-- 브랜치 원격 저장소에 반영: git push origin j
+### 실험 개요
+사전에 **FSR Sensor**를 이용하여 사용자의 **너클(knuckle)**, **손등(back of hand)**, 그리고 **전완(forearm)**에 가할 수 있는 힘의 범위를 측정하여 저장합니다. 이 데이터를 바탕으로 본 실험 프로그램을 통해 **피부 위에서의 힘 입력 정확도**를 측정합니다.
 
------ 작업 진행 후 -----
+### 기술 스택
+- **Framework**: `Python`의 **tkinter** 프레임워크를 사용하여 화면과 인터랙션을 구성하였습니다.
 
-- git add .
-- git commit -m "작업 내용 적기"
-- 
-- 기준 브랜치로 이동: git checkout main
-- 기준 브랜치와 병합: git merge j
+### 프로그램 구성
+프로그램의 전체 와이어프레임은 **Adobe XD**로 제작되었습니다. 구체적인 구성은 아래 URL에서 확인할 수 있습니다:
+[와이어프레임 보기](https://xd.adobe.com/view/d2299ee0-520f-40a3-984e-87bfd01f050a-877a/?fullscreen)
 
-- ??? 만약 되지 않는다 ??? -> 충돌이 난 경우
+---
 
-1. 모여서 해결하기
-2. git add .
-3. git commit -m "Resolve conflicts"
-4. git push
-
-
------ 작업 완료 후 삭제 -----
-- 로컬: git branch -d j
-- 원격: git push origin -d j
+![프로그램 이미지](wireframe.png)
